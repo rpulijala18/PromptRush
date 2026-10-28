@@ -18,7 +18,12 @@ export function buildWhatsAppShareUrl(options: {
   referralCode?: string | null;
   baseUrl?: string;
 }): string {
-  const { score, referralCode, baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000' } = options;
+  const defaultBase =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+  const { score, referralCode, baseUrl = defaultBase } = options;
 
   const scoreText = typeof score === 'number' ? `${score}/100` : 'high';
   const targetUrl = referralCode

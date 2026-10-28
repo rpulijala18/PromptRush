@@ -142,7 +142,23 @@ function ChallengeContent() {
           throw new Error(data.error || "Submission failed");
         }
 
-        // Clear session storage attempt
+        // Reliably cache the result for instant hydration and serverless resilience
+        try {
+          const resultPayload = {
+            id: attemptId,
+            score: data.score,
+            level: data.level,
+            scoreBreakdown: data.scoreBreakdown,
+            timeSpentSeconds: timeSpent,
+            completed: true,
+          };
+          sessionStorage.setItem(`promptrush_result_${attemptId}`, JSON.stringify(resultPayload));
+          localStorage.setItem(`promptrush_result_${attemptId}`, JSON.stringify(resultPayload));
+        } catch (storageErr) {
+          console.warn("Could not cache attempt in browser storage:", storageErr);
+        }
+
+        // Clear session storage attempt timer draft
         sessionStorage.removeItem(SESSION_ATTEMPT_KEY);
 
         // Smooth redirect to results page

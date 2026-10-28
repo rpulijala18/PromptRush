@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   Link2,
@@ -10,6 +10,7 @@ import {
   Calculator,
   Database,
   Sliders,
+  LogOut,
 } from "lucide-react";
 
 interface AdminNavProps {
@@ -19,6 +20,18 @@ interface AdminNavProps {
 
 export function AdminNav({ mode, onToggleMode }: AdminNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/admin/logout", { method: "POST" });
+    } catch {}
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("promptrush_admin_auth");
+    }
+    router.push("/admin/login");
+    router.refresh();
+  };
 
   const links = [
     { href: "/admin/dashboard", label: "Dashboard", icon: BarChart3 },
@@ -72,6 +85,14 @@ export function AdminNav({ mode, onToggleMode }: AdminNavProps) {
           }`}
         >
           Live Mode
+        </button>
+
+        <button
+          onClick={handleLogout}
+          title="Sign out of Admin"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors ml-1"
+        >
+          <LogOut className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>

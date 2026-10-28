@@ -187,38 +187,52 @@ export default function AdminCampaignsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1E293B] text-slate-300">
-              {campaigns.map((camp) => (
-                <tr key={camp.id} className="hover:bg-slate-800/40">
-                  <td className="py-3 px-3 font-semibold text-white">{camp.channelName}</td>
-                  <td className="py-3 px-3">
-                    <span className="font-mono text-violet-300">{camp.utmSource}</span> /{" "}
-                    <span className="font-mono text-cyan-300">{camp.utmMedium}</span>
-                  </td>
-                  <td className="py-3 px-3 font-mono text-slate-400 max-w-xs truncate">
-                    {camp.generatedUrl}
-                  </td>
-                  <td className="py-3 px-3 text-right">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleCopy(camp.id, camp.generatedUrl)}
-                      className="text-xs gap-1"
-                    >
-                      {copiedId === camp.id ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Copy Link</span>
-                        </>
-                      )}
-                    </Button>
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-slate-400">
+                    Loading distribution links...
                   </td>
                 </tr>
-              ))}
+              ) : campaigns.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-slate-400">
+                    No campaign links generated yet. Use the form above to create your first trackable distribution link.
+                  </td>
+                </tr>
+              ) : (
+                campaigns.map((camp) => (
+                  <tr key={camp.id} className="hover:bg-slate-800/40">
+                    <td className="py-3 px-3 font-semibold text-white">{camp.channelName}</td>
+                    <td className="py-3 px-3">
+                      <span className="font-mono text-violet-300">{camp.utmSource}</span> /{" "}
+                      <span className="font-mono text-cyan-300">{camp.utmMedium}</span>
+                    </td>
+                    <td className="py-3 px-3 font-mono text-slate-400 max-w-xs truncate">
+                      {camp.generatedUrl}
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCopy(camp.id, camp.generatedUrl)}
+                        className="text-xs gap-1"
+                      >
+                        {copiedId === camp.id ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy Link</span>
+                          </>
+                        )}
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

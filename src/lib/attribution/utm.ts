@@ -41,23 +41,38 @@ export function recordFirstTouchAttribution(params: AttributionParams, pathname 
 
   try {
     const existingRaw = localStorage.getItem(ATTRIBUTION_STORAGE_KEY);
+    let existing: AttributionParams | null = null;
     if (existingRaw) {
-      const existing = JSON.parse(existingRaw) as AttributionParams;
-      // If we already have first-touch source or ref, retain it!
-      if (existing.utmSource || existing.ref) {
-        return existing;
+      try {
+        existing = JSON.parse(existingRaw) as AttributionParams;
+      } catch {}
+    }
+
+    const hasNewCampaign = Boolean(params.utmSource && params.utmSource !== 'direct');
+    const hasNewRef = Boolean(params.ref);
+
+    // If we have an existing attribution that was just a generic unreferred direct visit,
+    // allow upgrading to an explicit campaign or referral link.
+    const isGenericDirect = existing && !existing.ref && (!existing.utmSource || existing.utmSource === 'direct');
+
+    if (existing && !isGenericDirect) {
+      // If user arrives via a friend's referral link, preserve/set the ref parameter
+      if (hasNewRef && !existing.ref) {
+        existing.ref = params.ref;
+        localStorage.setItem(ATTRIBUTION_STORAGE_KEY, JSON.stringify(existing));
       }
+      return existing;
     }
 
     const hasNewParams = Object.keys(params).length > 0;
     const finalAttribution: AttributionParams = {
       ...params,
       landingPage: pathname,
-      firstSeenAt: new Date().toISOString(),
+      firstSeenAt: existing?.firstSeenAt || new Date().toISOString(),
       utmSource: params.utmSource || (params.ref ? 'referral' : 'direct'),
     };
 
-    if (hasNewParams || !existingRaw) {
+    if (hasNewParams || !existingRaw || isGenericDirect) {
       localStorage.setItem(ATTRIBUTION_STORAGE_KEY, JSON.stringify(finalAttribution));
     }
     return finalAttribution;

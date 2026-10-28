@@ -25,6 +25,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ScoreBreakdown, PerformanceLevel } from "@/types";
 import { buildWhatsAppShareUrl } from "@/lib/referrals/generator";
+import { getSavedAttribution } from "@/lib/attribution/utm";
 
 export default function ResultsPage() {
   const params = useParams();
@@ -36,37 +37,103 @@ export default function ResultsPage() {
   const [score, setScore] = useState<number>(0);
   const [animatedScore, setAnimatedScore] = useState<number>(0);
   const [breakdown, setBreakdown] = useState<ScoreBreakdown | null>(null);
+  const [refCode, setRefCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const attr = getSavedAttribution();
+      if (attr?.ref) {
+        setRefCode(attr.ref);
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (!attemptId) return;
 
+    let isMounted = true;
+
     async function fetchResult() {
+      // 1. Check browser storage for validated attempt result (ensures resilience across serverless lambdas)
+      let cachedData: any = null;
+      try {
+        const stored =
+          sessionStorage.getItem(`promptrush_result_${attemptId}`) ||
+          localStorage.getItem(`promptrush_result_${attemptId}`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && typeof parsed.score === "number" && parsed.scoreBreakdown) {
+            cachedData = parsed;
+            if (isMounted) {
+              setScore(parsed.score);
+              setBreakdown(parsed.scoreBreakdown);
+              setError(null);
+              setLoading(false);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Storage check fallback:", err);
+      }
+
+      // 2. Fetch from backend API
       try {
         const res = await fetch(`/api/attempts?id=${encodeURIComponent(attemptId)}`);
-        if (!res.ok) {
-          throw new Error("Unable to load challenge result.");
-        }
-        const data = await res.json();
-        setScore(data.score);
-        setBreakdown(data.scoreBreakdown);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            setScore(data.score);
+            setBreakdown(data.scoreBreakdown);
+            setError(null);
+            setLoading(false);
 
-        // Confetti if high score
-        if (data.score >= 80) {
-          confetti({
-            particleCount: 80,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ["#7C3AED", "#22D3EE", "#22C55E"],
-          });
+            if (data.score >= 80) {
+              confetti({
+                particleCount: 80,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ["#7C3AED", "#22D3EE", "#22C55E"],
+              });
+            }
+          }
+
+          // Update cache
+          try {
+            sessionStorage.setItem(`promptrush_result_${attemptId}`, JSON.stringify(data));
+          } catch {}
+          return;
         }
+
+        // If backend returned error, but we have a valid cached attempt for this ID, use it
+        if (cachedData) {
+          if (cachedData.score >= 80) {
+            confetti({
+              particleCount: 80,
+              spread: 70,
+              origin: { y: 0.6 },
+              colors: ["#7C3AED", "#22D3EE", "#22C55E"],
+            });
+          }
+          return;
+        }
+
+        throw new Error("Unable to load challenge result.");
       } catch (err: any) {
-        setError(err.message || "Failed to load results.");
+        if (!cachedData && isMounted) {
+          setError(err.message || "Failed to load results.");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
 
     fetchResult();
+
+    return () => {
+      isMounted = false;
+    };
   }, [attemptId]);
 
   // Score count-up animation
@@ -142,7 +209,7 @@ export default function ResultsPage() {
   };
 
   const levelConfig = levelStyles[breakdown.level];
-  const shareWhatsAppUrl = buildWhatsAppShareUrl({ score });
+  const shareWhatsAppUrl = buildWhatsAppShareUrl({ score, referralCode: refCode });
 
   // SVG circular gauge math
   const radius = 64;
@@ -219,7 +286,7 @@ export default function ResultsPage() {
 
         {/* Primary CTAs */}
         <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link href={`/register?score=${score}&level=${encodeURIComponent(breakdown.level)}`} className="w-full sm:w-auto">
+          <Link href={`/register?score=${score}&level=${encodeURIComponent(breakdown.level)}${refCode ? `&ref=${encodeURIComponent(refCode)}` : ""}`} className="w-full sm:w-auto">
             <Button size="xl" variant="primary" className="w-full shadow-violet-900/50 gap-2">
               <span>Build Your First AI Project — Free Workshop</span>
               <ArrowRight className="w-5 h-5 text-[#22D3EE]" />
@@ -356,7 +423,7 @@ export default function ResultsPage() {
 
       {/* Bottom Sticky CTA Bar */}
       <div className="text-center pt-4">
-        <Link href={`/register?score=${score}&level=${encodeURIComponent(breakdown.level)}`}>
+        <Link href={`/register?score=${score}&level=${encodeURIComponent(breakdown.level)}${refCode ? `&ref=${encodeURIComponent(refCode)}` : ""}`}>
           <Button size="xl" variant="primary" className="px-8 shadow-xl shadow-violet-900/60">
             Claim Your Spot: Free 60-Minute AI Project Workshop →
           </Button>

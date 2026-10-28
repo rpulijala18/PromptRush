@@ -19,21 +19,30 @@ export default function AdminLoginPage() {
     setIsLoading(true);
     setError(null);
 
-    // Simple, reliable local session validation
-    setTimeout(() => {
-      if (
-        (email.trim().toLowerCase() === "admin@promptrush.internal" && password === "admin123") ||
-        password.length >= 6
-      ) {
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem("promptrush_admin_auth", "true");
-        }
-        router.push("/admin/dashboard");
-      } else {
-        setError("Invalid administrator credentials. Please check your email and password.");
-        setIsLoading(false);
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Invalid administrator credentials.");
       }
-    }, 400);
+
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("promptrush_admin_auth", "true");
+      }
+
+      const from = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("from") : null;
+      router.push(from || "/admin/dashboard");
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message || "Failed to authenticate. Please check your credentials.");
+      setIsLoading(false);
+    }
   };
 
   return (
