@@ -82,3 +82,4 @@ Provide structured feedback with a rating out of 10 after each answer.`;
     expect(friendRegResult.registration.referredBy).toBe(regResult.registration.referralCode);
   });
 });
+
